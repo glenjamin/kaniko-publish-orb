@@ -4,6 +4,8 @@ workflows:
   flow:
     jobs:
       - docker-publish/publish:
+          image: ${DOCKER_LOGIN}/circleci-kaniko
+          tag: build-${CIRCLE_BUILD_NUM}
           filters:
             branches:
               only:
