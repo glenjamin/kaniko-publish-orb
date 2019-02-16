@@ -7,7 +7,7 @@ FROM alpine
 COPY --from=builder /kaniko /kaniko
 RUN echo "{}" > /kaniko/.docker/config.json
 
-ENV PATH /usr/local/bin:/kaniko
+ENV PATH="$PATH:/kaniko"
 ENV SSL_CERT_DIR=/kaniko/ssl/certs
 ENV DOCKER_CONFIG /kaniko/.docker/
 
