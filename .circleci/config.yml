@@ -63,6 +63,8 @@ orbs:
       Under the hood this uses Google's Kaniko project, but aims to provide a
       very similar interface as the circleci/docker-publish orb.
 
+      https://github.com/glenjamin/kaniko-publish-orb
+
       The kaniko binary is quite fussy, so I suggest you try and stick to using
       the provided job or at least the executor. If you need to do more work
       consider either doing it in a previous job and transferring via a workspace,
