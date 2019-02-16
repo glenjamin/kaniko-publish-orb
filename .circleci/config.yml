@@ -1,0 +1,13 @@
+version: 2.1
+
+workflows:
+  flow:
+    jobs:
+      - docker-publish/publish:
+          filters:
+            branches:
+              only:
+                - master
+
+orbs:
+  docker-publish: circleci/docker-publish@0.1.4
