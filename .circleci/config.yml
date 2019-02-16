@@ -78,7 +78,6 @@ orbs:
 
         usage:
           version: 2.1
-
           orbs:
             kaniko-publish: glenjamin/kaniko-publish@0.0.1
 
@@ -90,6 +89,9 @@ orbs:
       custom_name_and_tag:
         description: Build and Deploy image with a custom name and tag.
         usage:
+          version: 2.1
+          orbs:
+            kaniko-publish: glenjamin/kaniko-publish@0.0.1
           workflows:
             build_and_publish_image:
               jobs:
@@ -102,6 +104,9 @@ orbs:
           Build and Deploy image with a non standard Dockerfile and to a
           custom registry.
         usage:
+          version: 2.1
+          orbs:
+            kaniko-publish: glenjamin/kaniko-publish@0.0.1
           workflows:
             build_and_publish_image:
               jobs:
@@ -115,6 +120,9 @@ orbs:
           checking out the code from the VCS repository, before building the
           docker image, and after building the docker image.
         usage:
+          version: 2.1
+          orbs:
+            kaniko-publish: glenjamin/kaniko-publish@0.0.1
           workflows:
             workflow_with_lifecycle:
               jobs:
@@ -137,6 +145,9 @@ orbs:
           Build, but don't publish, an image using the publish job.
 
         usage:
+          version: 2.1
+          orbs:
+            kaniko-publish: glenjamin/kaniko-publish@0.0.1
           workflows:
             build_without_publishing:
               jobs:
@@ -149,6 +160,9 @@ orbs:
           Build, but don't publish, an image using the check and build jobs.
 
         usage:
+          version: 2.1
+          orbs:
+            kaniko-publish: glenjamin/kaniko-publish@0.0.1
           jobs:
             check_and_build_only:
               executor: kaniko-publish/docker
@@ -168,6 +182,9 @@ orbs:
           Build/publish an image with extra build arguments
 
         usage:
+          version: 2.1
+          orbs:
+            kaniko-publish: glenjamin/kaniko-publish@0.0.1
           workflows:
             extra_build_args:
               jobs:
