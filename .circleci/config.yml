@@ -297,6 +297,7 @@ orbs:
                 --tarPath "<< parameters.tar_path >>"
                 <</parameters.tar_path>>
                 << parameters.extra_build_args >>
+                -v debug
 
     jobs:
       publish:
