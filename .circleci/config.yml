@@ -30,7 +30,7 @@ workflows:
 
   container:
     jobs:
-      - kaniko-publish/publish:
+      - docker-publish/publish:
           image: ${DOCKER_LOGIN}/circleci-kaniko
           tag: build-${CIRCLE_BUILD_NUM}
           filters:
@@ -53,6 +53,7 @@ jobs:
 orbs:
   orb-tools: circleci/orb-tools@7.3.0
   cli: circleci/circleci-cli@0.1.2
+  docker-publish: circleci/docker-publish@0.1.4
 
   kaniko-publish:
     description: |
@@ -258,6 +259,7 @@ orbs:
         steps:
           - run:
               name: "kaniko-publish: build and push container"
+              shell: /bin/sh -uxeo pipefail
               command: >-
                 /kaniko/executor
                 --dockerfile "<< parameters.dockerfile >>"
