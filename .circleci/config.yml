@@ -32,12 +32,13 @@ workflows:
 
 jobs:
   build-and-test:
-    executor: cli/default
+    executor: circleci/ruby:2.4
     steps:
       - orb-tools/extract-inline-orb:
           file: orb.yml
           orb: kaniko-publish
           source: .circleci/config.yml
+      - cli/install
       - orb-tools/validate
 
 orbs:
