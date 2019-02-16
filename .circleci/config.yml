@@ -1,9 +1,28 @@
 version: 2.1
 
 workflows:
-  flow:
+  orb:
     jobs:
-      - docker-publish/publish:
+      - build-and-test
+      - orb-tools/publish-dev:
+          requires:
+            - build-and-test
+          orb-name: glenjamin/kaniko-publish
+          publish-alpha-version: false
+          publish-sha-version: true
+      - approval:
+          type: approval
+          requires:
+            - build-and-test
+            - orb-tools/publish-dev
+      - orb-tools/dev-promote-prod:
+          requires:
+            - approval
+          orb-name: glenjamin/kaniko-publish
+
+  container:
+    jobs:
+      - kaniko-publish/publish:
           image: ${DOCKER_LOGIN}/circleci-kaniko
           tag: build-${CIRCLE_BUILD_NUM}
           filters:
@@ -11,5 +30,311 @@ workflows:
               only:
                 - master
 
+jobs:
+  build-and-test:
+    executor: cli/default
+    steps:
+      - orb-tools/extract-inline-orb:
+          file: orb.yml
+          orb: kaniko-publish
+          source: .circleci/config.yml
+      - orb-tools/validate
+
 orbs:
-  docker-publish: circleci/docker-publish@0.1.4
+  orb-tools: circleci/orb-tools@7.3.0
+  cli: circleci/circleci-cli@0.1.2
+
+  kaniko-publish:
+    description: |
+      Build and publish container images to container registries *without* docker
+
+      Under the hood this uses Google's Kaniko project, but aims to provide a
+      very similar interface as the circleci/docker-publish orb.
+
+      The kaniko binary is quite fussy, so I suggest you try and stick to using
+      the provided job or at least the executor. If you need to do more work
+      consider either doing it in a previous job and transferring via a workspace,
+      or build a container based on the one we're using.
+
+    examples:
+      standard_build_and_push:
+        description: |
+          A standard docker workflow, where you are building an image with a
+          Dockerfile in the root of your repository, naming the image to be the
+          same name as your repository, and then pushing to the default docker
+          registry (at docker.io).
+
+        usage:
+          version: 2.1
+
+          orbs:
+            kaniko-publish: glenjamin/kaniko-publish@0.0.1
+
+          workflows:
+            build_and_publish_image:
+              jobs:
+                - kaniko-publish/publish
+
+      custom_name_and_tag:
+        description: Build and Deploy image with a custom name and tag.
+        usage:
+          workflows:
+            build_and_publish_image:
+              jobs:
+                - docker-publish/publish:
+                    image: my/image
+                    tag: my_tag
+
+      custom_registry_and_dockerfile:
+        description: |
+          Build and Deploy image with a non standard Dockerfile and to a
+          custom registry.
+        usage:
+          workflows:
+            build_and_publish_image:
+              jobs:
+                - docker-publish/publish:
+                    registry: my.docker.registry
+                    dockerfile: path/to/MyDockerFile
+
+      life_cycle_hooks:
+        description: |
+          Build and deploy an image with custom lifecycle hooks; before
+          checking out the code from the VCS repository, before building the
+          docker image, and after building the docker image.
+        usage:
+          workflows:
+            workflow_with_lifecycle:
+              jobs:
+                - kaniko-publish/publish:
+                    after_checkout:
+                      - run:
+                          name: Do this after checkout.
+                          command: echo "Did this after checkout"
+                    before_build:
+                      - run:
+                          name: Do this before the build.
+                          command: echo "Did this before the build"
+                    after_build:
+                      - run:
+                          name: Do this after the build.
+                          command: echo "Did this after the build"
+
+      build_without_publishing_job:
+        description: >
+          Build, but don't publish, an image using the publish job.
+
+        usage:
+          workflows:
+            build_without_publishing:
+              jobs:
+                - kaniko-publish/publish:
+                    deploy: false
+                    tar_path: container.tar
+
+      build_without_publishing_commands:
+        description: >
+          Build, but don't publish, an image using the check and build jobs.
+
+        usage:
+          jobs:
+            check_and_build_only:
+              executor: kaniko-publish/docker
+              steps:
+                - checkout
+                - kaniko-publish/check
+                - kaniko-publish/build_and_push:
+                    deploy: false
+
+          workflows:
+            build_without_publishing:
+              jobs:
+                - check_and_build_only
+
+      with_extra_build_args:
+        description: >
+          Build/publish an image with extra build arguments
+
+        usage:
+          workflows:
+            extra_build_args:
+              jobs:
+                - kaniko-publish/publish:
+                    extra_build_args: --build-arg FOO=bar --build-arg BAZ=qux
+
+    executors:
+      kaniko:
+        docker:
+          - image: glenathan/circleci-kaniko:build-3
+
+    commands:
+      check:
+        description: |
+          Sanity check to make sure you can push a container image.
+
+            * check that $DOCKER_LOGIN and $DOCKER_PASSWORD environment variables are set
+            * run docker login to ensure that you can push the built image
+        parameters:
+          registry:
+            description: Name of registry to use. Defaults to docker.io.
+            type: string
+            default: docker.io
+        steps:
+          - run:
+              name: "kaniko-publish: Check Environment Variables"
+              command: |
+                if [[ -z "${DOCKER_LOGIN}" ]]; then
+                  echo "DOCKER_LOGIN is not set, will not be able to push image."
+                  exit 1
+                fi
+
+                if [[ -z "${DOCKER_PASSWORD}" ]]; then
+                  echo "DOCKER_PASSWORD is not set, will not be able to push image."
+                  exit 1
+                fi
+          - run:
+              name: "kaniko-publish: Simulate Docker Login"
+              command: |
+                auth=$(printf "${DOCKER_LOGIN}:${DOCKER_PASSWORD}" | base64)
+                mkdir -p /kaniko/.docker
+                cat \<< JSON > /kaniko/.docker/config.json
+                {
+                  "auths": {
+                    "<< parameters.registry >>": {
+                      "auth": "${auth}"
+                    }
+                  }
+                }
+                JSON
+
+      build_and_push:
+        description: Builds, tags and pushes a container image
+        parameters:
+          dockerfile:
+            description: Name of dockerfile to use. Defaults to Dockerfile.
+            type: string
+            default: Dockerfile
+          path:
+            description: Path to the directory containing your Dockerfile and build context. Defaults to . (working directory).
+            type: string
+            default: .
+          image:
+            description: Name of image to create. Defaults to a combination of $DOCKER_LOGIN/$CIRCLE_PROJECT_REPONAME.
+            type: string
+            default: $DOCKER_LOGIN/$CIRCLE_PROJECT_REPONAME
+          tag:
+            description: Value for tag to use. Defaults to $CIRCLE_SHA1.
+            type: string
+            default: $CIRCLE_SHA1
+          registry:
+            description: Name of registry to use. Defaults to docker.io.
+            type: string
+            default: docker.io
+          extra_build_args:
+            description: >
+              Extra flags to pass to kaniko/executor. For examples, see
+              https://github.com/GoogleContainerTools/kaniko#additional-flags
+            type: string
+            default: ""
+          deploy:
+            description: Whether or not to push image to a registry.
+            type: boolean
+            default: true
+          tar_path:
+            description: Set this if you want to produce a container tarball when not deploying
+            type: string
+            default: ""
+        steps:
+          - run:
+              name: "kaniko-publish: build and push container"
+              command: >-
+                /kaniko/executor
+                --dockerfile "<< parameters.dockerfile >>"
+                --context=dir://<< parameters.path >>
+                --destination "<< parameters.registry >>/<< parameters.image >>:<< parameters.tag >>"
+                <<^parameters.deploy>>
+                --no-push
+                <</parameters.deploy>>
+                <<#parameters.tar_path>>
+                --tarPath "<< parameters.tar_path >>"
+                <</parameters.tar_path>>
+                << parameters.extra_build_args >>
+
+    jobs:
+      publish:
+        executor: kaniko
+        parameters:
+          dockerfile:
+            description: Name of dockerfile to use. Defaults to Dockerfile.
+            type: string
+            default: Dockerfile
+          path:
+            description: Path to the directory containing your Dockerfile and build context. Defaults to . (working directory).
+            type: string
+            default: .
+          image:
+            description: Name of image to create. Defaults to a combination of $DOCKER_LOGIN/$CIRCLE_PROJECT_REPONAME.
+            type: string
+            default: $DOCKER_LOGIN/$CIRCLE_PROJECT_REPONAME
+          tag:
+            description: Value for tag to use. Defaults to $CIRCLE_SHA1.
+            type: string
+            default: $CIRCLE_SHA1
+          registry:
+            description: Name of registry to use. Defaults to docker.io.
+            type: string
+            default: docker.io
+          extra_build_args:
+            description: >
+              Extra flags to pass to kaniko/executor. For examples, see
+              https://github.com/GoogleContainerTools/kaniko#additional-flags
+            type: string
+            default: ""
+          after_checkout:
+            description: Optional steps to run after checking out the code.
+            type: steps
+            default: []
+          before_build:
+            description: Optional steps to run before building the docker image.
+            type: steps
+            default: []
+          after_build:
+            description: Optional steps to run after building the docker image.
+            type: steps
+            default: []
+          deploy:
+            description: Whether or not to push image to a registry.
+            type: boolean
+            default: true
+          tar_path:
+            description: Set this if you want to produce a container tarball when not deploying
+            type: string
+            default: ""
+        steps:
+          - checkout
+          - when:
+              name: Run after_checkout lifecycle hook steps.
+              condition: << parameters.after_checkout >>
+              steps: << parameters.after_checkout >>
+          - when:
+              condition: <<parameters.deploy>>
+              steps:
+                - check:
+                    registry: << parameters.registry >>
+          - when:
+              name: Run before_build lifecycle hook steps.
+              condition: << parameters.before_build >>
+              steps: << parameters.before_build >>
+          - build_and_push:
+              dockerfile: << parameters.dockerfile >>
+              path: << parameters.path >>
+              image: << parameters.image >>
+              tag: << parameters.tag >>
+              registry: << parameters.registry >>
+              extra_build_args: << parameters.extra_build_args >>
+              deploy: << parameters.deploy >>
+              tar_path: << parameters.tar_path >>
+          - when:
+              name: Run after_build lifecycle hook steps.
+              condition: << parameters.after_build >>
+              steps: << parameters.after_build >>

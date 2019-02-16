@@ -7,4 +7,6 @@ COPY --from=builder /kaniko /kaniko
 ENV SSL_CERT_DIR=/kaniko/ssl/certs
 ENV DOCKER_CONFIG /kaniko/.docker/
 
+WORKDIR /workspace
+
 ENTRYPOINT ["/kaniko/executor"]
