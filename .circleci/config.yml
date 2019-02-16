@@ -43,6 +43,7 @@ jobs:
     docker:
       - image: circleci/ruby:2.4
     steps:
+      - checkout
       - orb-tools/extract-inline-orb:
           file: orb.yml
           orb: kaniko-publish
