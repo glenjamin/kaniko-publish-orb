@@ -228,7 +228,7 @@ orbs:
           path:
             description: Path to the directory containing your Dockerfile and build context. Defaults to . (working directory).
             type: string
-            default: .
+            default: $(pwd)
           image:
             description: Name of image to create. Defaults to a combination of $DOCKER_LOGIN/$CIRCLE_PROJECT_REPONAME.
             type: string
@@ -261,7 +261,7 @@ orbs:
               command: >-
                 /kaniko/executor
                 --dockerfile "<< parameters.dockerfile >>"
-                --context=dir://<< parameters.path >>
+                --context "<< parameters.path >>"
                 --destination "<< parameters.registry >>/<< parameters.image >>:<< parameters.tag >>"
                 <<^parameters.deploy>>
                 --no-push
@@ -282,7 +282,7 @@ orbs:
           path:
             description: Path to the directory containing your Dockerfile and build context. Defaults to . (working directory).
             type: string
-            default: .
+            default: $(pwd)
           image:
             description: Name of image to create. Defaults to a combination of $DOCKER_LOGIN/$CIRCLE_PROJECT_REPONAME.
             type: string
