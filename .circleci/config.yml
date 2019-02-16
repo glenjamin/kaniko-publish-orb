@@ -30,7 +30,7 @@ workflows:
 
   container:
     jobs:
-      - docker-publish/publish:
+      - kaniko-publish/publish:
           image: ${DOCKER_LOGIN}/circleci-kaniko
           tag: build-${CIRCLE_BUILD_NUM}
           filters:
@@ -54,7 +54,6 @@ jobs:
 orbs:
   orb-tools: circleci/orb-tools@7.3.0
   cli: circleci/circleci-cli@0.1.2
-  docker-publish: circleci/docker-publish@0.1.4
 
   kaniko-publish:
     description: |
