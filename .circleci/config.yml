@@ -225,12 +225,16 @@ orbs:
           - run:
               name: "kaniko-publish: Simulate Docker Login"
               command: |
+                if [[ "<< parameters.registry >>" != "docker.io"]]; then
+                  echo "TODO: test and support other registries"
+                  exit 1
+                fi
                 auth=$(printf "${DOCKER_LOGIN}:${DOCKER_PASSWORD}" | base64)
                 mkdir -p /kaniko/.docker
                 cat \<< JSON > /kaniko/.docker/config.json
                 {
                   "auths": {
-                    "<< parameters.registry >>": {
+                    "https://index.docker.io/v1/": {
                       "auth": "${auth}"
                     }
                   }
