@@ -11,7 +11,8 @@ ENV PATH="$PATH:/kaniko"
 ENV SSL_CERT_DIR=/kaniko/ssl/certs
 ENV DOCKER_CONFIG /kaniko/.docker/
 
-
+# Declare /workspace as a volume so kaniko leaves it alone
+VOLUME /workspace
 WORKDIR /workspace
 
 ENTRYPOINT ["/kaniko/executor"]
