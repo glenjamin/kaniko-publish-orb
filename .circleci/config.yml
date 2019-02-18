@@ -196,7 +196,7 @@ orbs:
     executors:
       kaniko:
         docker:
-          - image: glenathan/circleci-kaniko:build-3
+          - image: glenathan/circleci-kaniko:build-62
         working_directory: /workspace
 
     commands:
